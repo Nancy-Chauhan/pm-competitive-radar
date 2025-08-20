@@ -3,7 +3,7 @@ import json
 import requests
 import streamlit as st
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 
 from agno.agent.agent import Agent
@@ -45,7 +45,7 @@ class WeeklyReport(BaseModel):
     industry_trends: List[str] = Field(..., description="Cross-competitor trends")
     recommendations: List[str] = Field(..., description="Strategic recommendations")
     sources: List[str] = Field(default=[], description="All source repositories analyzed")
-    key_insights_with_sources: List[Dict[str, str]] = Field(default=[], description="Key insights with their sources")
+    key_insights_with_sources: List[Dict[str, Any]] = Field(default=[], description="Key insights with their sources")
     methodology: str = Field(default="", description="Analysis methodology and data sources")
 
 
@@ -144,72 +144,97 @@ class CompetitiveIntelligenceWorkflow(Workflow):
 
     def analyze_competitor(self, project_name: str, owner: str, repo: str) -> Optional[CompetitorAnalysis]:
         """Analyze a single competitor using agno data analyzer agent"""
-        github_data = self.get_github_data(owner, repo)
-        
-        analysis_prompt = f"""
-        Analyze competitive intelligence for {project_name} ({owner}/{repo}):
-        
-        Repository URL: {github_data["repository_url"]}
-        
-        Recent Releases: {json.dumps(github_data["releases"])}
-        Recent Issues: {json.dumps(github_data["issues"])}
-        
-        Provide structured analysis with the following requirements:
-        1. Include the repository_url in your response
-        2. For each recent release, include the version, description, date, and the html_url link
-        3. For recurring issue patterns, include example issue URLs (html_url) for each pattern
-        4. Extract key features and strategic insights
-        
-        IMPORTANT: Include actual URLs from the provided data so users can reference the source material.
-        """
-        
         try:
+            logger.info(f"Starting analysis for {project_name}")
+            github_data = self.get_github_data(owner, repo)
+            
+            if not github_data.get("releases") and not github_data.get("issues"):
+                logger.warning(f"No data found for {project_name}")
+                return None
+            
+            analysis_prompt = f"""
+            Analyze competitive intelligence for {project_name} ({owner}/{repo}):
+            
+            Repository URL: {github_data["repository_url"]}
+            
+            Recent Releases: {json.dumps(github_data["releases"])}
+            Recent Issues: {json.dumps(github_data["issues"])}
+            
+            Provide structured analysis with the following requirements:
+            1. Include the repository_url: {github_data["repository_url"]}
+            2. For each recent release, include the version, description, date, and the html_url link
+            3. For recurring issue patterns, include example issue URLs (html_url) for each pattern
+            4. Extract key features and strategic insights
+            
+            IMPORTANT: Include actual URLs from the provided data so users can reference the source material.
+            Format the response according to the CompetitorAnalysis model structure.
+            """
+            
+            logger.info(f"Running AI analysis for {project_name}")
             response: RunResponse = self.data_analyzer.run(analysis_prompt)
+            
             if response and response.content and isinstance(response.content, CompetitorAnalysis):
+                logger.info(f"Successfully analyzed {project_name}")
                 return response.content
             else:
-                logger.warning(f"Invalid response from data analyzer for {project_name}")
+                logger.warning(f"Invalid response format for {project_name}: {type(response.content) if response else 'No response'}")
                 return None
+                
         except Exception as e:
-            logger.error(f"Error analyzing {project_name}: {e}")
+            logger.error(f"Error analyzing {project_name}: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return None
 
     def generate_weekly_report(self, analyses: List[CompetitorAnalysis]) -> Optional[WeeklyReport]:
         """Generate weekly intelligence report using agno report generator agent"""
-        
-        # Extract all sources
-        sources = []
-        for analysis in analyses:
-            if hasattr(analysis, 'repository_url') and analysis.repository_url:
-                sources.append(f"{analysis.project_name}: {analysis.repository_url}")
-        
-        report_prompt = f"""
-        Generate competitive intelligence report from competitor analyses:
-        
-        Data: {json.dumps([analysis.model_dump() for analysis in analyses])}
-        
-        Provide:
-        1. Industry trends across competitors with specific examples
-        2. Strategic recommendations for product management with supporting evidence
-        3. Competitive threats and opportunities with sources
-        4. Key insights with their specific sources (repository URLs, release links, issue examples)
-        5. Analysis methodology explaining the data sources and approach
-        
-        IMPORTANT: Include sources and references for all claims and insights.
-        """
-        
         try:
+            logger.info("Starting weekly report generation")
+            
+            # Extract all sources
+            sources = []
+            for analysis in analyses:
+                if hasattr(analysis, 'repository_url') and analysis.repository_url:
+                    sources.append(f"{analysis.project_name}: {analysis.repository_url}")
+            
+            report_prompt = f"""
+            Generate competitive intelligence report from competitor analyses:
+            
+            Data: {json.dumps([analysis.model_dump() for analysis in analyses])}
+            
+            Provide a structured weekly report with:
+            1. Industry trends across competitors with specific examples
+            2. Strategic recommendations for product management with supporting evidence
+            3. Competitive threats and opportunities with sources
+            4. Key insights with their specific sources (repository URLs, release links, issue examples)
+            5. Analysis methodology explaining the data sources and approach
+            
+            IMPORTANT: 
+            - Include sources and references for all claims and insights
+            - Format key_insights_with_sources as a list of objects with 'insight' and 'source' keys
+            - Include the methodology explaining how this analysis was conducted
+            - Ensure all recommendations are backed by specific evidence from the data
+            
+            Format the response according to the WeeklyReport model structure.
+            """
+            
+            logger.info("Running AI report generation")
             response: RunResponse = self.report_generator.run(report_prompt)
+            
             if response and response.content and isinstance(response.content, WeeklyReport):
-                # Ensure sources are populated
+                # Ensure sources are populated if not provided by AI
                 if not response.content.sources and sources:
                     response.content.sources = sources
+                logger.info("Successfully generated weekly report")
                 return response.content
             else:
-                logger.warning("Invalid response from report generator")
+                logger.warning(f"Invalid response from report generator: {type(response.content) if response else 'No response'}")
                 return None
+                
         except Exception as e:
-            logger.error(f"Error generating report: {e}")
+            logger.error(f"Error generating report: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return None
 
     def get_cached_report(self, week_key: str) -> Optional[WeeklyReport]:
