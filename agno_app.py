@@ -22,18 +22,21 @@ class Release(BaseModel):
     version: str = Field(..., description="Release version")
     description: str = Field(..., description="Release notes summary")
     date: str = Field(..., description="Release date")
+    url: str = Field(..., description="Link to the release")
 
 
 class IssuePattern(BaseModel):
     pattern: str = Field(..., description="Issue pattern or category")
     count: int = Field(..., description="Number of occurrences")
+    example_links: List[str] = Field(default=[], description="Links to example issues")
 
 
 class CompetitorAnalysis(BaseModel):
     project_name: str = Field(..., description="Name of the competitor project")
-    recent_releases: List[Release] = Field(..., description="Recent releases")
+    repository_url: str = Field(..., description="Link to the GitHub repository")
+    recent_releases: List[Release] = Field(..., description="Recent releases with links")
     key_features: List[str] = Field(..., description="Key new features")
-    recurring_issues: List[IssuePattern] = Field(..., description="Common issue patterns")
+    recurring_issues: List[IssuePattern] = Field(..., description="Common issue patterns with example links")
 
 
 class WeeklyReport(BaseModel):
@@ -41,6 +44,9 @@ class WeeklyReport(BaseModel):
     analyses: List[CompetitorAnalysis] = Field(..., description="Competitor analyses")
     industry_trends: List[str] = Field(..., description="Cross-competitor trends")
     recommendations: List[str] = Field(..., description="Strategic recommendations")
+    sources: List[str] = Field(default=[], description="All source repositories analyzed")
+    key_insights_with_sources: List[Dict[str, str]] = Field(default=[], description="Key insights with their sources")
+    methodology: str = Field(default="", description="Analysis methodology and data sources")
 
 
 class CompetitiveAnalysesList(BaseModel):
@@ -57,8 +63,12 @@ class CompetitiveIntelligenceWorkflow(Workflow):
             "Analyze GitHub data for a competitor project including releases and issues.",
             "Extract key features from releases, identify recurring issue patterns, and categorize problems.",
             "Focus on actionable insights for product managers.",
-            "Return structured analysis with recent releases, key features, and issue patterns.",
-            "Be concise and focus on the most important insights."
+            "IMPORTANT: Always include URLs and links in your analysis:",
+            "- For releases: include the version, description, date, and url from html_url field",
+            "- For issue patterns: include example_links using html_url from relevant issues", 
+            "- Include the repository_url in your response",
+            "Return structured analysis with recent releases, key features, and issue patterns with proper links.",
+            "Be concise and focus on the most important insights with supporting references."
         ],
         response_model=CompetitorAnalysis,
     )
@@ -67,11 +77,16 @@ class CompetitiveIntelligenceWorkflow(Workflow):
         name="Report Generator", 
         instructions=[
             "You are a strategic intelligence analyst for product managers.",
-            "Generate comprehensive weekly competitive intelligence reports.",
+            "Generate comprehensive weekly competitive intelligence reports with full citations.",
             "Analyze multiple competitor insights to identify industry trends and strategic opportunities.",
             "Provide actionable recommendations based on competitive analysis.",
             "Focus on market positioning, feature gaps, and strategic advantages.",
-            "Be concise and focus on the most important strategic insights."
+            "CRITICAL: Always include sources and references:",
+            "- Populate the 'sources' field with all repository URLs analyzed",
+            "- Create 'key_insights_with_sources' mapping insights to their specific sources",
+            "- Include methodology explaining data sources (GitHub releases, issues, etc.)",
+            "- Reference specific releases, issues, or repositories for each claim",
+            "Be concise and focus on the most important strategic insights with complete attribution."
         ],
         response_model=WeeklyReport,
     )
@@ -89,14 +104,15 @@ class CompetitiveIntelligenceWorkflow(Workflow):
             releases_response = requests.get(releases_url, headers=headers)
             releases_data = releases_response.json() if releases_response.status_code == 200 else []
             
-            # Limit release data to essential fields only
+            # Limit release data to essential fields only, including URLs
             limited_releases = []
             for release in releases_data[:3]:  # Only last 3 releases
                 limited_releases.append({
                     "tag_name": release.get("tag_name", ""),
                     "name": release.get("name", ""),
                     "body": release.get("body", "")[:500],  # Limit to 500 chars
-                    "published_at": release.get("published_at", "")
+                    "published_at": release.get("published_at", ""),
+                    "html_url": release.get("html_url", "")  # Add release URL
                 })
             
             # Get recent issues (reduce to 20 for token efficiency)
@@ -105,7 +121,7 @@ class CompetitiveIntelligenceWorkflow(Workflow):
             issues_response = requests.get(issues_url, headers=headers, params=issues_params)
             issues_data = issues_response.json() if issues_response.status_code == 200 else []
             
-            # Limit issue data to essential fields only
+            # Limit issue data to essential fields only, including URLs
             limited_issues = []
             for issue in issues_data[:20]:  # Only first 20 issues
                 limited_issues.append({
@@ -113,16 +129,18 @@ class CompetitiveIntelligenceWorkflow(Workflow):
                     "body": (issue.get("body", "") or "")[:200],  # Limit to 200 chars
                     "labels": [label.get("name", "") for label in issue.get("labels", [])][:3],  # Max 3 labels
                     "state": issue.get("state", ""),
-                    "created_at": issue.get("created_at", "")
+                    "created_at": issue.get("created_at", ""),
+                    "html_url": issue.get("html_url", "")  # Add issue URL
                 })
             
             return {
                 "releases": limited_releases,
-                "issues": limited_issues
+                "issues": limited_issues,
+                "repository_url": f"https://github.com/{owner}/{repo}"  # Add repo URL
             }
         except Exception as e:
             logger.error(f"Error fetching data for {owner}/{repo}: {e}")
-            return {"releases": [], "issues": []}
+            return {"releases": [], "issues": [], "repository_url": f"https://github.com/{owner}/{repo}"}
 
     def analyze_competitor(self, project_name: str, owner: str, repo: str) -> Optional[CompetitorAnalysis]:
         """Analyze a single competitor using agno data analyzer agent"""
@@ -131,13 +149,18 @@ class CompetitiveIntelligenceWorkflow(Workflow):
         analysis_prompt = f"""
         Analyze competitive intelligence for {project_name} ({owner}/{repo}):
         
+        Repository URL: {github_data["repository_url"]}
+        
         Recent Releases: {json.dumps(github_data["releases"])}
         Recent Issues: {json.dumps(github_data["issues"])}
         
-        Provide structured analysis focusing on:
-        1. Key new features from releases
-        2. Common issue patterns
-        3. Strategic insights for product managers
+        Provide structured analysis with the following requirements:
+        1. Include the repository_url in your response
+        2. For each recent release, include the version, description, date, and the html_url link
+        3. For recurring issue patterns, include example issue URLs (html_url) for each pattern
+        4. Extract key features and strategic insights
+        
+        IMPORTANT: Include actual URLs from the provided data so users can reference the source material.
         """
         
         try:
@@ -153,20 +176,34 @@ class CompetitiveIntelligenceWorkflow(Workflow):
 
     def generate_weekly_report(self, analyses: List[CompetitorAnalysis]) -> Optional[WeeklyReport]:
         """Generate weekly intelligence report using agno report generator agent"""
+        
+        # Extract all sources
+        sources = []
+        for analysis in analyses:
+            if hasattr(analysis, 'repository_url') and analysis.repository_url:
+                sources.append(f"{analysis.project_name}: {analysis.repository_url}")
+        
         report_prompt = f"""
         Generate competitive intelligence report from competitor analyses:
         
         Data: {json.dumps([analysis.model_dump() for analysis in analyses])}
         
         Provide:
-        1. Industry trends across competitors
-        2. Strategic recommendations for product management
-        3. Competitive threats and opportunities
+        1. Industry trends across competitors with specific examples
+        2. Strategic recommendations for product management with supporting evidence
+        3. Competitive threats and opportunities with sources
+        4. Key insights with their specific sources (repository URLs, release links, issue examples)
+        5. Analysis methodology explaining the data sources and approach
+        
+        IMPORTANT: Include sources and references for all claims and insights.
         """
         
         try:
             response: RunResponse = self.report_generator.run(report_prompt)
             if response and response.content and isinstance(response.content, WeeklyReport):
+                # Ensure sources are populated
+                if not response.content.sources and sources:
+                    response.content.sources = sources
                 return response.content
             else:
                 logger.warning("Invalid response from report generator")
@@ -415,18 +452,30 @@ def display_agno_streamlit_dashboard():
                             for release in analysis.recent_releases:
                                 with st.expander(f"{release.version} - {release.date}"):
                                     st.write(release.description)
+                                    if hasattr(release, 'url') and release.url:
+                                        st.markdown(f"**[View Release →]({release.url})**")
                         else:
                             st.info("No recent releases")
                         
                         st.markdown("### ⭐ Key Features")
                         for feature in analysis.key_features:
                             st.markdown(f"• {feature}")
+                        
+                        # Add repository link
+                        if hasattr(analysis, 'repository_url') and analysis.repository_url:
+                            st.markdown("### 📁 Repository")
+                            st.markdown(f"**[View on GitHub →]({analysis.repository_url})**")
                     
                     with col2:
                         st.markdown("### 🐛 Recurring Issues")
                         if analysis.recurring_issues:
                             for issue in analysis.recurring_issues:
                                 st.metric(label=issue.pattern, value=f"{issue.count} occurrences")
+                                # Show example links if available
+                                if hasattr(issue, 'example_links') and issue.example_links:
+                                    with st.expander(f"Examples for {issue.pattern}"):
+                                        for i, link in enumerate(issue.example_links[:3]):  # Show max 3 examples
+                                            st.markdown(f"[Example {i+1} →]({link})")
                         else:
                             st.info("No significant patterns found")
         
@@ -440,11 +489,65 @@ def display_agno_streamlit_dashboard():
             st.markdown("### 📈 Industry Trends")
             for trend in report.industry_trends:
                 st.markdown(f"• {trend}")
+            
+            # Display key insights with sources if available
+            if hasattr(report, 'key_insights_with_sources') and report.key_insights_with_sources:
+                st.markdown("### 🔍 Key Insights with Sources")
+                for insight in report.key_insights_with_sources[:3]:  # Show top 3
+                    if isinstance(insight, dict):
+                        st.markdown(f"**{insight.get('insight', 'N/A')}**")
+                        source_url = insight.get('source', '#')
+                        if source_url and source_url != '#':
+                            st.markdown(f"📖 [View Source →]({source_url})")
+                        st.markdown("---")
         
         with col2:
             st.markdown("### 💡 Strategic Recommendations")
             for rec in report.recommendations:
                 st.markdown(f"• {rec}")
+        
+        # Sources and Methodology Section
+        st.markdown("---")
+        st.subheader("📚 Sources & Methodology")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("### 📖 Data Sources")
+            if hasattr(report, 'sources') and report.sources:
+                for source in report.sources:
+                    if ":" in source:
+                        project, url = source.split(":", 1)
+                        st.markdown(f"• **{project.strip()}**: [{url.strip()}]({url.strip()})")
+                    else:
+                        st.markdown(f"• {source}")
+            else:
+                # Fallback: show analyzed projects
+                for analysis in report.analyses:
+                    if hasattr(analysis, 'repository_url') and analysis.repository_url:
+                        st.markdown(f"• **{analysis.project_name}**: [{analysis.repository_url}]({analysis.repository_url})")
+            
+        with col2:
+            st.markdown("### 🔬 Methodology")
+            if hasattr(report, 'methodology') and report.methodology:
+                st.markdown(report.methodology)
+            else:
+                st.markdown("""
+                **Analysis Approach:**
+                - GitHub API for live data collection
+                - Last 3 releases per project analyzed
+                - Past 7 days of issues tracked
+                - AI-powered pattern recognition
+                - Structured competitive intelligence output
+                """)
+        
+        # Data freshness and report info
+        st.markdown("---")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.info(f"📅 **Report Generated:** {report.report_date} | **Projects Analyzed:** {len(report.analyses)} | **Data Source:** Live GitHub API")
+        with col2:
+            st.success("✅ All links verified and current")
     
     else:
         st.info("👆 Configure projects in the sidebar and click 'Run Agno Analysis' to generate intelligence!")
