@@ -319,27 +319,14 @@ def display_agno_streamlit_dashboard():
         st.error("❌ GitHub token not found! Please set GITHUB_TOKEN in your .env file")
         return
     
-    # Initialize workflow
+    # Initialize workflow without PostgreSQL
     try:
-        # Try with PostgreSQL storage first, fallback to basic storage
-        try:
-            workflow = CompetitiveIntelligenceWorkflow(
-                session_id="pm-competitive-radar",
-                storage=PostgresStorage(
-                    table_name="pm_competitive_radar_workflows",
-                    db_url="postgresql+psycopg://ai:ai@localhost:5532/ai",
-                ),
-            )
-            st.sidebar.success("✅ PostgreSQL storage connected")
-        except Exception as e:
-            # Fallback to basic workflow without postgres
-            workflow = CompetitiveIntelligenceWorkflow(
-                session_id="pm-competitive-radar"
-            )
-            st.sidebar.warning("⚠️ Using basic storage (no PostgreSQL)")
-            
+        workflow = CompetitiveIntelligenceWorkflow(
+            session_id="pm-competitive-radar"
+        )
+        st.sidebar.success("✅ PM Radar initialized")
     except Exception as e:
-        st.error(f"Failed to initialize agno workflow: {e}")
+        st.error(f"Failed to initialize workflow: {e}")
         return
     
     # Sidebar controls
@@ -622,7 +609,7 @@ def display_agno_streamlit_dashboard():
         st.markdown("**💡 Tip:** Add your competitors' open-source projects to track their development trends!")
 
 
-# Create the agno workflow instance
+# Create the agno workflow instance (no PostgreSQL dependency)
 competitive_intelligence = CompetitiveIntelligenceWorkflow(
     session_id="pm-competitive-radar"
 )
