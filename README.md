@@ -1,8 +1,8 @@
-# AI Competitive Intelligence Agent
+# PM Competitive Radar
 
-🤖 **AI-powered competitive intelligence using the agno framework**
+📡 **AI-powered competitive intelligence radar for Product Managers**
 
-Automatically analyzes competitor GitHub repositories and generates strategic insights using AI agents.
+Automatically analyzes competitor GitHub repositories and generates strategic insights using AI agents to keep PMs ahead of the competition.
 
 ## Features
 
@@ -18,7 +18,7 @@ Automatically analyzes competitor GitHub repositories and generates strategic in
 1. **Clone the repository**
 ```bash
 git clone <your-repo-url>
-cd competitive-intelligence-agent
+cd pm-competitive-radar
 ```
 
 2. **Create virtual environment**

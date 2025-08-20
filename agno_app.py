@@ -235,13 +235,13 @@ class CompetitiveIntelligenceWorkflow(Workflow):
 def display_agno_streamlit_dashboard():
     """Streamlit dashboard using agno competitive intelligence workflow"""
     st.set_page_config(
-        page_title="🤖 Agno Competitive Intelligence",
-        page_icon="🤖",
+        page_title="📡 PM Competitive Radar",
+        page_icon="📡",
         layout="wide"
     )
     
-    st.title("🤖 Agno Competitive Intelligence Dashboard")
-    st.markdown("*Powered by agno AI agents for strategic analysis*")
+    st.title("📡 PM Competitive Radar")
+    st.markdown("*AI-powered competitive intelligence for Product Managers*")
     st.markdown("---")
     
     # Display agno framework info
@@ -264,9 +264,9 @@ def display_agno_streamlit_dashboard():
         # Try with PostgreSQL storage first, fallback to basic storage
         try:
             workflow = CompetitiveIntelligenceWorkflow(
-                session_id="competitive-intelligence-agno",
+                session_id="pm-competitive-radar",
                 storage=PostgresStorage(
-                    table_name="competitive_intelligence_workflows",
+                    table_name="pm_competitive_radar_workflows",
                     db_url="postgresql+psycopg://ai:ai@localhost:5532/ai",
                 ),
             )
@@ -274,7 +274,7 @@ def display_agno_streamlit_dashboard():
         except Exception as e:
             # Fallback to basic workflow without postgres
             workflow = CompetitiveIntelligenceWorkflow(
-                session_id="competitive-intelligence-agno"
+                session_id="pm-competitive-radar"
             )
             st.sidebar.warning("⚠️ Using basic storage (no PostgreSQL)")
             
@@ -283,7 +283,7 @@ def display_agno_streamlit_dashboard():
         return
     
     # Sidebar controls
-    st.sidebar.title("⚙️ Agno Controls")
+    st.sidebar.title("📡 PM Radar Controls")
     
     # Competitor selection
     st.sidebar.subheader("Select Competitors")
@@ -401,7 +401,7 @@ def display_agno_streamlit_dashboard():
 
 # Create the agno workflow instance
 competitive_intelligence = CompetitiveIntelligenceWorkflow(
-    session_id="competitive-intelligence-agno"
+    session_id="pm-competitive-radar"
 )
 
 # Run Streamlit app
