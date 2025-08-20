@@ -29,7 +29,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 3. **Install dependencies**
 ```bash
-pip install streamlit requests psycopg2-binary agno sqlalchemy openai python-dotenv
+pip install -r requirements.txt
 ```
 
 4. **Set environment variables**
