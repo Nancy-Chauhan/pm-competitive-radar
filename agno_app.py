@@ -247,11 +247,11 @@ def display_agno_streamlit_dashboard():
     # Display agno framework info
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        st.info("🤖 **Data Analyzer Agent**\nAnalyzes GitHub data")
+        st.info("🤖 **Data Analyzer Agent**\nAnalyzes GitHub releases & issues")
     with col2:
         st.info("📊 **Report Generator Agent**\nCreates strategic insights")  
     with col3:
-        st.info("🔄 **Workflow Management**\nOrchestrates analysis")
+        st.info("⚙️ **Configurable Projects**\nCustom or default competitors")
     
     # Check GitHub token
     github_token = os.getenv("GITHUB_TOKEN")
@@ -285,21 +285,82 @@ def display_agno_streamlit_dashboard():
     # Sidebar controls
     st.sidebar.title("📡 PM Radar Controls")
     
-    # Competitor selection
-    st.sidebar.subheader("Select Competitors")
+    # Project configuration section
+    st.sidebar.subheader("📋 Configure Projects")
     
-    competitors = {
-        "Next.js": {"owner": "vercel", "repo": "next.js"},
-        "Nuxt": {"owner": "nuxt", "repo": "nuxt"},
-        "SvelteKit": {"owner": "sveltejs", "repo": "kit"},
-        "Remix": {"owner": "remix-run", "repo": "remix"},
-        "Astro": {"owner": "withastro", "repo": "astro"}
-    }
+    # Option to use default or custom projects
+    use_defaults = st.sidebar.checkbox("Use Default Web Frameworks", value=True)
     
-    selected_competitors = {}
-    for name, config in competitors.items():
-        if st.sidebar.checkbox(name, value=True):
-            selected_competitors[name] = config
+    if use_defaults:
+        # Default competitors
+        competitors = {
+            "Next.js": {"owner": "vercel", "repo": "next.js"},
+            "Nuxt": {"owner": "nuxt", "repo": "nuxt"},
+            "SvelteKit": {"owner": "sveltejs", "repo": "kit"},
+            "Remix": {"owner": "remix-run", "repo": "remix"},
+            "Astro": {"owner": "withastro", "repo": "astro"}
+        }
+        
+        selected_competitors = {}
+        for name, config in competitors.items():
+            if st.sidebar.checkbox(name, value=True):
+                selected_competitors[name] = config
+    else:
+        # Custom project input
+        st.sidebar.markdown("**Add Custom Projects:**")
+        
+        # Initialize session state for custom projects
+        if 'custom_projects' not in st.session_state:
+            st.session_state.custom_projects = []
+        
+        # Add new project form
+        with st.sidebar.expander("➕ Add New Project"):
+            project_name = st.text_input("Project Name", placeholder="e.g., React")
+            github_owner = st.text_input("GitHub Owner", placeholder="e.g., facebook")
+            github_repo = st.text_input("Repository Name", placeholder="e.g., react")
+            
+            if st.button("Add Project"):
+                if project_name and github_owner and github_repo:
+                    new_project = {
+                        "name": project_name,
+                        "owner": github_owner,
+                        "repo": github_repo
+                    }
+                    st.session_state.custom_projects.append(new_project)
+                    st.success(f"Added {project_name}!")
+                else:
+                    st.error("Please fill all fields")
+        
+        # Display and select custom projects
+        selected_competitors = {}
+        if st.session_state.custom_projects:
+            st.sidebar.markdown("**Select Projects to Analyze:**")
+            for i, project in enumerate(st.session_state.custom_projects):
+                col1, col2 = st.sidebar.columns([3, 1])
+                with col1:
+                    if st.checkbox(f"{project['name']}", key=f"custom_{i}"):
+                        selected_competitors[project['name']] = {
+                            "owner": project['owner'],
+                            "repo": project['repo']
+                        }
+                with col2:
+                    if st.button("🗑️", key=f"delete_{i}", help="Delete project"):
+                        st.session_state.custom_projects.pop(i)
+                        st.rerun()
+        else:
+            st.sidebar.info("No custom projects added yet")
+    
+    # Analysis controls
+    st.sidebar.markdown("---")
+    
+    # Show selected projects count
+    if selected_competitors:
+        st.sidebar.success(f"✅ {len(selected_competitors)} projects selected")
+        st.sidebar.markdown("**Selected Projects:**")
+        for name in selected_competitors.keys():
+            st.sidebar.write(f"• {name}")
+    else:
+        st.sidebar.warning("⚠️ No projects selected")
     
     use_cache = st.sidebar.checkbox("Use Cached Data", value=False)
     
@@ -386,17 +447,51 @@ def display_agno_streamlit_dashboard():
                 st.markdown(f"• {rec}")
     
     else:
-        st.info("👆 Click 'Run Agno Analysis' to generate intelligence using AI agents!")
+        st.info("👆 Configure projects in the sidebar and click 'Run Agno Analysis' to generate intelligence!")
         
-        st.markdown("## 🤖 Agno Framework Features")
+        st.markdown("## 📡 PM Competitive Radar Features")
         st.markdown("""
-        - **🧠 AI Agents**: Specialized agents for data analysis and report generation
+        - **🔧 Configurable Projects**: Add any GitHub repository for analysis
+        - **🤖 AI Agents**: Specialized agents for data analysis and report generation
         - **📋 Structured Models**: Pydantic models for consistent data handling  
         - **🔄 Workflow Management**: Robust workflow orchestration with retry logic
         - **💾 PostgreSQL Storage**: Optional persistent storage for caching
         - **📊 Real-time Analysis**: Live GitHub API integration
-        - **🎯 Strategic Focus**: Product manager-focused insights and recommendations
+        - **🎯 PM Focus**: Strategic insights and recommendations for Product Managers
         """)
+        
+        st.markdown("## 💡 Example Projects You Can Analyze")
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown("""
+            **Web Frameworks:**
+            - Next.js (vercel/next.js)
+            - React (facebook/react)
+            - Vue (vuejs/core)
+            - Angular (angular/angular)
+            
+            **Backend Frameworks:**
+            - Express (expressjs/express)
+            - Fastify (fastify/fastify)
+            - NestJS (nestjs/nest)
+            """)
+        
+        with col2:
+            st.markdown("""
+            **Developer Tools:**
+            - VS Code (microsoft/vscode)
+            - Prettier (prettier/prettier)
+            - ESLint (eslint/eslint)
+            - Webpack (webpack/webpack)
+            
+            **Databases:**
+            - PostgreSQL (postgres/postgres)
+            - MongoDB (mongodb/mongo)
+            - Redis (redis/redis)
+            """)
+            
+        st.markdown("**💡 Tip:** Add your competitors' open-source projects to track their development trends!")
 
 
 # Create the agno workflow instance
