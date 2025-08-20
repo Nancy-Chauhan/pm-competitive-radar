@@ -1,18 +1,18 @@
 # PM Competitive Radar
 
-📡 **AI-powered competitive intelligence radar for Product Managers**
+**AI-powered competitive intelligence radar for Product Managers**
 
 Automatically analyzes competitor GitHub repositories and generates strategic insights using AI agents to keep PMs ahead of the competition.
 
 ## Features
 
-- 📡 **Configurable Projects** - Add any GitHub repository for analysis
-- 🔍 **Real-time Analysis** - Live GitHub data from your chosen competitors
-- 🤖 **AI Agents** - Data analyzer and report generator using OpenAI
-- 📊 **Interactive Dashboard** - Streamlit interface with dynamic project management
-- 🎯 **Default Competitors** - Pre-configured with Next.js, Nuxt, SvelteKit, Remix, Astro
-- 📈 **Strategic Insights** - Industry trends and recommendations for PMs
-- 💾 **Persistent Storage** - PostgreSQL for caching results
+- **Configurable Projects** - Add any GitHub repository for analysis
+- **Real-time Analysis** - Live GitHub data from your chosen competitors
+- **AI Agents** - Data analyzer and report generator using OpenAI
+- **Interactive Dashboard** - Streamlit interface with dynamic project management
+- **Default Competitors** - Pre-configured with Next.js, Nuxt, SvelteKit, Remix, Astro
+- **Strategic Insights** - Industry trends and recommendations for PMs
+- **Persistent Storage** - PostgreSQL for caching results
 
 ## Quick Start
 
