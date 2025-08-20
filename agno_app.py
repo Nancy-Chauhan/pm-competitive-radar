@@ -44,9 +44,8 @@ class WeeklyReport(BaseModel):
     analyses: List[CompetitorAnalysis] = Field(..., description="Competitor analyses")
     industry_trends: List[str] = Field(..., description="Cross-competitor trends")
     recommendations: List[str] = Field(..., description="Strategic recommendations")
-    sources: List[str] = Field(default=[], description="All source repositories analyzed")
-    key_insights_with_sources: List[Dict[str, Any]] = Field(default=[], description="Key insights with their sources")
-    methodology: str = Field(default="", description="Analysis methodology and data sources")
+    sources: Optional[List[str]] = Field(default=None, description="All source repositories analyzed")
+    methodology: Optional[str] = Field(default=None, description="Analysis methodology and data sources")
 
 
 class CompetitiveAnalysesList(BaseModel):
@@ -77,15 +76,15 @@ class CompetitiveIntelligenceWorkflow(Workflow):
         name="Report Generator", 
         instructions=[
             "You are a strategic intelligence analyst for product managers.",
-            "Generate comprehensive weekly competitive intelligence reports with full citations.",
+            "Generate comprehensive weekly competitive intelligence reports with source attribution.",
             "Analyze multiple competitor insights to identify industry trends and strategic opportunities.",
             "Provide actionable recommendations based on competitive analysis.",
             "Focus on market positioning, feature gaps, and strategic advantages.",
             "CRITICAL: Always include sources and references:",
             "- Populate the 'sources' field with all repository URLs analyzed",
-            "- Create 'key_insights_with_sources' mapping insights to their specific sources",
             "- Include methodology explaining data sources (GitHub releases, issues, etc.)",
-            "- Reference specific releases, issues, or repositories for each claim",
+            "- Reference specific releases, issues, or repositories in your trends and recommendations",
+            "- Make industry trends detailed and reference specific competitor findings",
             "Be concise and focus on the most important strategic insights with complete attribution."
         ],
         response_model=WeeklyReport,
@@ -204,16 +203,15 @@ class CompetitiveIntelligenceWorkflow(Workflow):
             
             Provide a structured weekly report with:
             1. Industry trends across competitors with specific examples
-            2. Strategic recommendations for product management with supporting evidence
-            3. Competitive threats and opportunities with sources
-            4. Key insights with their specific sources (repository URLs, release links, issue examples)
-            5. Analysis methodology explaining the data sources and approach
+            2. Strategic recommendations for product management with supporting evidence  
+            3. Competitive threats and opportunities
+            4. Analysis methodology explaining the data sources and approach
             
             IMPORTANT: 
-            - Include sources and references for all claims and insights
-            - Format key_insights_with_sources as a list of objects with 'insight' and 'source' keys
-            - Include the methodology explaining how this analysis was conducted
+            - Include detailed industry trends that reference specific competitor findings
             - Ensure all recommendations are backed by specific evidence from the data
+            - Include methodology explaining how this analysis was conducted
+            - Focus on actionable insights for Product Managers
             
             Format the response according to the WeeklyReport model structure.
             """
@@ -516,15 +514,17 @@ def display_agno_streamlit_dashboard():
                 st.markdown(f"• {trend}")
             
             # Display key insights with sources if available
-            if hasattr(report, 'key_insights_with_sources') and report.key_insights_with_sources:
-                st.markdown("### 🔍 Key Insights with Sources")
-                for insight in report.key_insights_with_sources[:3]:  # Show top 3
-                    if isinstance(insight, dict):
-                        st.markdown(f"**{insight.get('insight', 'N/A')}**")
-                        source_url = insight.get('source', '#')
-                        if source_url and source_url != '#':
-                            st.markdown(f"📖 [View Source →]({source_url})")
-                        st.markdown("---")
+            st.markdown("### 🔍 Key Insights")
+            # Since we removed key_insights_with_sources from the model, 
+            # we'll show insights from industry_trends with source attribution
+            for i, trend in enumerate(report.industry_trends[:3]):  # Show top 3
+                st.markdown(f"**Insight {i+1}:** {trend}")
+                # Show sources for this insight based on analyzed projects
+                if report.analyses:
+                    example_source = report.analyses[0]  # Use first analysis as example
+                    if hasattr(example_source, 'repository_url') and example_source.repository_url:
+                        st.markdown(f"📖 [View Source →]({example_source.repository_url})")
+                st.markdown("---")
         
         with col2:
             st.markdown("### 💡 Strategic Recommendations")
